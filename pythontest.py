@@ -1,11 +1,12 @@
 import threading
 import time
+from queue import Queue, PriorityQueue
 
 
-class WorkPiece:
-    def __init__(self, chunk_num, values) -> None:
-        self.chunk_num = chunk_num
-        self.values = values
+# class WorkPiece:
+#     def __init__(self, chunk_num, values) -> None:
+#         self.chunk_num = chunk_num
+#         self.values = values
 
 
 class ProcessThread(threading.Thread):
@@ -16,22 +17,24 @@ class ProcessThread(threading.Thread):
 
     def run(self):
         while True:
-            print(threading.currentThread().getName(), 'Starting')
-            if self.in_list:
-                chunk = self.in_list.pop(0)
-                while chunk.chunk_num != current_chunk:
-                    time.sleep(1)
-                print("Hi")
-                # with open('resultfile.txt', 'a') as file:
-                #     file.write('\n'.join(chunk.values) + '\n')
+            try:
+                chunk = self.in_list.get(block=True, timeout=1)
+                print('\n'.join(chunk[1]) + '\n')
+                self.in_list.task_done()
+            except Queue.Empty:
+                break
+            # with open('resultfile.txt', 'a') as file:
+            #     file.write('\n'.join(chunk.values) + '\n')
 
 
 if __name__ == "__main__":
     current_chunk = 0
-    chunk1 = WorkPiece(1, ['2', '4', '5', '6'])
-    chunk2 = WorkPiece(0, ['2', '4', '2', '1'])
+    chunk1 = (1, ['2', '4', '5', '6'])
+    chunk2 = (0, ['2', '4', '2', '1'])
 
-    results = [chunk1, chunk2]
+    results = Queue()
+    results.put(chunk1)
+    results.put(chunk2)
 
     threads = []
     for i in range(0, 2):
@@ -40,5 +43,4 @@ if __name__ == "__main__":
         t.setDaemon(True)
         t.start()
 
-    while not len(results):
-        time.sleep(1)
+    results.join()
