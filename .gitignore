@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-hugefile?.txt
+*.txt
 # C extensions
 *.so
 
