@@ -70,18 +70,21 @@ if __name__ == "__main__":
     MyManager.register("PriorityQueue", PriorityQueue)
     m = Manager()
 
+    # Create the two shared PriorityQueues
     file_queue = m.PriorityQueue()
     results_queue = m.PriorityQueue()
+
     file1 = "/Users/david/Google Drive/Personal/Education/CSU-Global/CSC507 - Foundations of Operating Systems/Module 8/CSC507_PortfolioProject/hugefile1.txt"
     file2 = "/Users/david/Google Drive/Personal/Education/CSU-Global/CSC507 - Foundations of Operating Systems/Module 8/CSC507_PortfolioProject/hugefile2.txt"
+
+    # Create and spawn process which reads the input files, and puts chunks into file_queue
     worker_process = Process(target=ProcessFilesThread,
                              args=(file1, file2, file_queue, ))
     worker_process.start()
 
-    time.sleep(5)    # nope, race condition, you shall not pass (probably)
-    print("ProcessFilesThread", file_queue.qsize())
+    time.sleep(5)    # Try to avoid a race condition
 
-    # Proc pool
+    # Proc pool for the addition processes
     procs = []
 
     # Create 1 thread per processor
@@ -90,15 +93,13 @@ if __name__ == "__main__":
         procs.append(p)
         p.start()
 
-    print("ProcessThread", results_queue.qsize())
-    # # # Wait until all threads are complete
-    # # for t in threads:
-    # #     t.join()
-
+    # Create one process to read from the results_queue and write to the output file.
     save_proc = Process(target=SaveChunk, args=(results_queue,))
     save_proc.start()
 
+    # Wait until the saving process is complete
     save_proc.join()
+    # Then we can kill the rest of the addition proceses
     for p in procs:
         p.join()
 
