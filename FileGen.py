@@ -1,10 +1,15 @@
 import random
 
-# Start with smaller set for testing
-with open('hugefile1.txt', 'w') as file:
-    for i in range(100000):
-        file.write(str(random.randint(0, 32767)) + '\n')
 
-with open('hugefile2.txt', 'w') as file:
-    for i in range(100000):
-        file.write(str(random.randint(0, 32767)) + '\n')
+def createFile(file_name, filesize):
+    with open(file_name, 'w') as file:
+        for i in range(filesize):
+            if i == filesize - 1:
+                file.write(str(random.randint(0, 32767)))
+            else:
+                file.write(str(random.randint(0, 32767)) + '\n')
+
+
+filesize = 1000000000
+createFile("hugefile1.txt", filesize)
+createFile("hugefile2.txt", filesize)
