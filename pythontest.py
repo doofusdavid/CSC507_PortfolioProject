@@ -1,15 +1,7 @@
 import threading
+from queue import PriorityQueue, Empty
 import time
-from queue import Queue, PriorityQueue, Empty
 import logging
-
-# class WorkPiece:
-#     def __init__(self, chunk_num, values) -> None:
-#         self.chunk_num = chunk_num
-#         self.values = values
-logging.getLogger(__name__)
-logging.basicConfig(filename="adder.log", filemode='w',
-                    encoding="utf-8", format='%(levelname)s: %(message)s', level=logging.DEBUG)
 
 
 class ProcessFilesThread(threading.Thread):
@@ -22,41 +14,19 @@ class ProcessFilesThread(threading.Thread):
     def run(self):
         with open(self.file1, 'r') as file_1, open(self.file2, 'r') as file_2:
             chunk = []
-            chunksize = 1000
+            chunksize = 100000
             chunk_num = 0
             position = 0
             for x, y in zip(file_1, file_2):
+                chunk.append((int(x), int(y)))
                 if position < chunksize:
-                    chunk.append((int(x), int(y)))
                     position += 1
                 else:
-                    logging.info("End Chunk {}".format(chunk_num))
                     self.out_queue.put((chunk_num, chunk))
                     chunk = []
                     chunk_num += 1
                     position = 0
             self.out_queue.put((chunk_num, chunk))
-            # print("chunk {}, value {}".format(chunk_num, chunk[-1]))
-
-
-# def ProcessFiles(file1, file2):
-#     with open(file1, 'r') as file_1, open(file2, 'r') as file_2:
-#         chunk = []
-#         chunksize = 1000
-#         chunk_num = 0
-#         position = 0
-#         out_queue = PriorityQueue()
-#         for x, y in zip(file_1, file_2):
-#             if position < chunksize:
-#                 chunk.append((int(x), int(y)))
-#                 position += 1
-#             else:
-#                 logging.info("End Chunk {}".format(chunk_num))
-#                 out_queue.put((chunk_num, chunk))
-#                 chunk = []
-#                 chunk_num += 1
-#                 position = 0
-#     return out_queue
 
 
 class ProcessThread(threading.Thread):
@@ -64,7 +34,6 @@ class ProcessThread(threading.Thread):
         super().__init__()
         self.in_queue = in_queue
         self.out_queue = out_queue
-        logging.info("Init ProcessThread")
 
     def run(self):
         while True:
@@ -88,37 +57,55 @@ class SaveChunk(threading.Thread):
         with open("outfile.txt", "w") as out_file:
             while True:
                 try:
-                    chunk = self.work_queue.get(block=True, timeout=2)
+                    chunk = self.work_queue.get(block=True, timeout=20)
                     out_file.writelines("%s\n" % num for num in chunk[1])
-                    print(chunk[0])
                     self.work_queue.task_done()
                 except Empty:
                     break
 
 
+def WordCount(file_name):
+    count = 0
+    for line in open(file_name):
+        count += 1
+    return count
+
+
 if __name__ == "__main__":
 
+    start_time = time.time()
+    # File Processing Queue
     file_queue = PriorityQueue()
+    # Queue holding results after addition before file writing
+    results_queue = PriorityQueue()
 
     t = ProcessFilesThread("/Users/david/Google Drive/Personal/Education/CSU-Global/CSC507 - Foundations of Operating Systems/Module 8/CSC507_PortfolioProject/hugefile1.txt",
                            "/Users/david/Google Drive/Personal/Education/CSU-Global/CSC507 - Foundations of Operating Systems/Module 8/CSC507_PortfolioProject/hugefile2.txt", file_queue)
     t.setDaemon(True)
     t.start()
     t.join()
-    print(file_queue.qsize())
-    results_queue = PriorityQueue()
 
+    # Thread pool
     threads = []
+
+    # Create 1 thread per processor
     for _ in range(8):
         t = ProcessThread(file_queue, results_queue)
         threads.append(t)
         t.setDaemon(True)
         t.start()
-        t.join()
 
-    print("Out of process")
+    # # Wait until all threads are complete
+    # for t in threads:
+    #     t.join()
+
     save_thread = SaveChunk(results_queue)
     save_thread.setDaemon(True)
     save_thread.start()
 
     save_thread.join()
+
+    end_time = time.time()
+
+    print("Resultant Word Count: {}".format(WordCount("outfile.txt")))
+    print("Time Taken: {}".format(end_time - start_time))
